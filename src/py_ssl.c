@@ -2184,6 +2184,272 @@ SSLSocket_connection_info_str(SSLSocket *self)
 
 }
 
+PyDoc_STRVAR(SSLSocket_send_additional_keyshares_doc,
+"send_additional_keyshares(value) -> None\n\
+Set the number of additional keyshares to be sent during TLS 1.3 ClientHello.\n\
+");
+
+static PyObject *
+SSLSocket_send_additional_keyshares(SSLSocket *self, PyObject *args)
+{
+    Py_ssize_t count;
+
+    TraceMethodEnter(self);
+
+    if (!PyArg_ParseTuple(args, "i:send_additional_keyshares", &count)) {
+        return NULL;
+    }
+
+    if (SSL_SendAdditionalKeyShares(self->pr_socket, (unsigned int)count) != SECSuccess) {
+        return set_nspr_error(NULL);
+    }
+
+    Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(SSLSocket_set_signature_scheme_prefs_doc,
+"set_signature_scheme_prefs(list[sigs]) -> None\n\
+Sets the signature schemes sent in signature_schemes extension during TLS 1.3 negotiation\n\
+Proper values include any of the ssl.ssl_sig_* constants\n\
+");
+
+static PyObject *
+SSLSocket_set_signature_scheme_prefs(SSLSocket *self, PyObject *args)
+{
+
+    PyObject* list = NULL;
+
+    TraceMethodEnter(self);
+
+    if (!PyArg_ParseTuple(args, "O:set_signature_scheme_prefs", &list)) {
+        return NULL;
+    }
+
+    if (!PyList_Check(list)) {
+        PyErr_Format(PyExc_TypeError, "SSLSocket.set_signature_scheme_prefs: Argument must be a list");
+        return NULL;
+    }
+
+    Py_ssize_t count = PyList_Size(list);
+
+    SSLSignatureScheme* signatures = malloc(count * sizeof(SSLSignatureScheme));
+
+    if (signatures == NULL) {
+        PyErr_Format(PyExc_MemoryError, "SSLSocket.set_signature_scheme_prefs: Out of memory");
+        return NULL;
+    }
+
+    for (int i = 0; i < count; ++i) {
+        PyObject* sig = PyList_GetItem(list, i);
+        // should this be PyLong_AsUnsignedLong() ?
+        signatures[i] = PyLong_AsLong(sig);
+
+        if (signatures[i] == -1 && PyErr_Occurred() != NULL) {
+            PyErr_Format(PyExc_TypeError, "SSLSocket.set_signature_scheme_prefs: Signature scheme must be an integer");
+            free(signatures);
+            return NULL;
+        }
+    }
+
+    if (SSL_SignatureSchemePrefSet(self->pr_socket, signatures, count) != SECSuccess) {
+        free(signatures);
+        return set_nspr_error(NULL);
+    }
+
+    free(signatures);
+    Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(SSLSocket_get_signature_scheme_prefs_doc,
+"get_signature_scheme_prefs() -> list[sigs]\n\
+returns the list of signature schemes currently enabled\n\
+");
+
+static PyObject *
+SSLSocket_get_signature_scheme_prefs(SSLSocket *self)
+{
+    unsigned int count;
+    // 30 is probably enough?
+    SSLSignatureScheme* schemes[50];
+
+    if (SSL_SignatureSchemePrefGet(self->pr_socket, schemes, &count, 50) != SECSuccess) {
+        return set_nspr_error(NULL);
+    }
+
+    PyObject* ret = PyList_New(count);
+
+    if (ret == NULL) {
+        return NULL;
+    }
+
+    for (int i = 0; i < count; ++i) {
+        PyObject* curr_sig = Py_BuildValue("i", schemes[i]);
+        
+        if (curr_sig == NULL) {
+            Py_DECREF(ret);
+            return NULL;
+        }
+
+        PyList_SetItem(ret, i ,curr_sig);
+    }
+
+    return ret;
+}
+
+PyDoc_STRVAR(SSLSocket_named_group_config_doc,
+"named_group_config(list[groups]) -> None\n\
+set the list of EC/DHE groups to be sent during ClientHello\n\
+");
+
+static PyObject *
+SSLSocket_named_group_config(SSLSocket *self, PyObject *args)
+{
+    PyObject *group_list;
+
+    if (!PyArg_ParseTuple(args, "O:named_group_config", &group_list)) {
+        return NULL;
+    }
+
+    if (!PyList_Check(group_list)) {
+        PyErr_Format(PyExc_TypeError, "SSLSocket.named_group_config: Argument must be a list");
+        return NULL;
+    }
+
+    Py_ssize_t count = PyList_Size(group_list);
+
+    if (count < 0) {
+        return NULL;
+    }
+
+    SSLNamedGroup* groups = malloc(count * sizeof(SSLNamedGroup));
+
+    if (groups == NULL) {
+        PyErr_Format(PyExc_MemoryError, "out of memory");
+        return NULL;
+    }
+
+    for (int i = 0; i < count; ++i) {
+        PyObject* group = PyList_GetItem(group_list, i);
+
+        // should this be PyLong_AsUnsignedLong() ?
+        groups[i] = PyLong_AsLong(group);
+
+        if (groups[i] == -1 && PyErr_Occurred() != NULL) {
+            free(groups);
+            return NULL;
+        }
+    }
+
+    if (SSL_NamedGroupConfig(self->pr_socket, groups, count) != SECSuccess) {
+        free(groups);
+        return set_nspr_error(NULL);
+    }
+
+    free(groups);
+    Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(SSLSocket_set_next_proto_doc,
+"set_next_proto(protocols)\n"
+"--\n\n"
+"set the next protocol(s) to be used during ALPN\n\
+");
+
+static PyObject *
+SSLSocket_set_next_proto(SSLSocket *self, PyObject *args)
+{
+
+    PyObject *proto_list;
+    
+    char buffer[256];
+    size_t buffer_len = 0;
+
+    if (!PyArg_ParseTuple(args, "O:set_next_proto", &proto_list)) {
+        return NULL;
+    }
+
+    if (!PyList_Check(proto_list)) {
+        PyErr_Format(PyExc_TypeError, "SSLSocket.set_next_proto: Argument must be a list");
+    }
+
+    Py_ssize_t count = PyList_Size(proto_list);
+
+    if (count < 0) {
+        return NULL;
+    }
+
+    for (int i = 0; i < count; ++i) {
+        PyObject* proto = PyList_GetItem(proto_list, i);
+
+        if (proto == NULL) {
+            return NULL;
+        }
+
+        char* proto_ptr = NULL;
+        Py_ssize_t proto_len = 0;
+
+        int result = PyBytes_AsStringAndSize(proto, &proto_ptr, &proto_len);
+
+        if (result == -1) {
+            return NULL;
+        }
+
+        // write length
+        buffer[buffer_len] = proto_len;
+        buffer_len += 1;
+        
+        // and the proto
+        memcpy(&buffer[buffer_len], proto_ptr, proto_len);
+        buffer_len += proto_len;
+        
+    }
+
+    if (SSL_SetNextProtoNego(self->pr_socket, buffer, buffer_len) != SECSuccess) {
+        return set_nspr_error(NULL);
+    }
+
+    Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(SSLSocket_get_next_proto_doc,
+"get_next_proto() -> (next_proto_state, bytes)\n\
+get the next protocol during ALPN negotiation\n\
+");
+
+static PyObject *
+SSLSocket_get_next_proto(SSLSocket *self)
+{
+
+    SSLNextProtoState state;
+    
+    char buffer[256];
+    unsigned int ret_len;
+
+    if (SSL_GetNextProto(self->pr_socket, &state, buffer, &ret_len, 256) != SECSuccess) {
+        return set_nspr_error(NULL);
+    }
+
+    PyObject* selected_proto = PyBytes_FromStringAndSize(buffer, (Py_ssize_t)ret_len);
+    
+    if (selected_proto == NULL) {
+        return NULL;
+    }
+
+    PyObject* ret_state = PyLong_FromLong(state);
+    
+    if (ret_state == NULL) {
+        return NULL;
+    }
+
+    PyObject* ret = PyTuple_Pack(2, ret_state, selected_proto);
+
+    if (ret == NULL) {
+        return NULL;
+    }
+
+    return ret;
+}
+
 static PyMethodDef SSLSocket_methods[] = {
     {"set_ssl_option",                (PyCFunction)SSLSocket_set_ssl_option,                METH_VARARGS,               SSLSocket_set_ssl_option_doc},
     {"get_ssl_option",                (PyCFunction)SSLSocket_get_ssl_option,                METH_VARARGS,               SSLSocket_get_ssl_option_doc},
@@ -2220,6 +2486,12 @@ static PyMethodDef SSLSocket_methods[] = {
     {"connection_info_format_lines",  (PyCFunction)SSLSocket_connection_info_format_lines,  METH_VARARGS|METH_KEYWORDS, generic_format_lines_doc},
     {"connection_info_format",        (PyCFunction)SSLSocket_connection_info_format,        METH_VARARGS|METH_KEYWORDS, generic_format_doc},
     {"connection_info_str",           (PyCFunction)SSLSocket_connection_info_str,           METH_NOARGS,                SSLSocket_connection_info_str_doc},
+    {"send_additional_keyshares",     (PyCFunction)SSLSocket_send_additional_keyshares,     METH_VARARGS,               SSLSocket_send_additional_keyshares_doc},
+    {"set_signature_scheme_prefs",    (PyCFunction)SSLSocket_set_signature_scheme_prefs,    METH_VARARGS,               SSLSocket_set_signature_scheme_prefs_doc},
+    {"get_signature_scheme_prefs",    (PyCFunction)SSLSocket_get_signature_scheme_prefs,    METH_NOARGS,                SSLSocket_get_signature_scheme_prefs_doc},
+    {"named_group_config",            (PyCFunction)SSLSocket_named_group_config,            METH_VARARGS,               SSLSocket_named_group_config_doc},
+    {"set_next_proto",                (PyCFunction)SSLSocket_set_next_proto,                METH_VARARGS,               SSLSocket_set_next_proto_doc},
+    {"get_next_proto",                (PyCFunction)SSLSocket_get_next_proto,                METH_NOARGS,                SSLSocket_get_next_proto_doc},
     {NULL, NULL}  /* Sentinel */
 };
 
@@ -4482,6 +4754,18 @@ if (_AddIntConstantWithLookup(m, alias, constant, \
     AddIntConstant(SSL_NO_STEP_DOWN);
     AddIntConstant(SSL_BYPASS_PKCS11);
     AddIntConstant(SSL_NO_LOCKS);
+    AddIntConstant(SSL_REQUIRE_SAFE_NEGOTIATION);
+    AddIntConstant(SSL_ENABLE_RENEGOTIATION);
+    AddIntConstant(SSL_ENABLE_EXTENDED_MASTER_SECRET);
+    AddIntConstant(SSL_ENABLE_FALSE_START);
+    AddIntConstant(SSL_ENABLE_ALPN);
+    AddIntConstant(SSL_ENABLE_0RTT_DATA);
+    AddIntConstant(SSL_ENABLE_TLS13_COMPAT_MODE);
+    AddIntConstant(SSL_ENABLE_POST_HANDSHAKE_AUTH);
+    AddIntConstant(SSL_ENABLE_DELEGATED_CREDENTIALS);
+    AddIntConstant(SSL_ENABLE_HELLO_DOWNGRADE_CHECK);
+    AddIntConstant(SSL_ENABLE_OCSP_STAPLING);
+    AddIntConstant(SSL_RENEGOTIATE_REQUIRES_XTN);
 
     /* Values for "policy" argument to SSL_PolicySet and returned by SSL_CipherPolicyGet. */
     AddIntConstant(SSL_NOT_ALLOWED);
@@ -4520,6 +4804,69 @@ if (_AddIntConstantWithLookup(m, alias, constant, \
     AddIntConstant(SSL_EN_IDEA_128_CBC_WITH_MD5);
     AddIntConstant(SSL_EN_DES_64_CBC_WITH_MD5);
     AddIntConstant(SSL_EN_DES_192_EDE3_CBC_WITH_MD5);
+
+    // SSL named groups
+    AddIntConstant(ssl_grp_ec_sect163k1);
+    AddIntConstant(ssl_grp_ec_sect163r1);
+    AddIntConstant(ssl_grp_ec_sect163r2);
+    AddIntConstant(ssl_grp_ec_sect193r1);
+    AddIntConstant(ssl_grp_ec_sect193r2);
+    AddIntConstant(ssl_grp_ec_sect233k1);
+    AddIntConstant(ssl_grp_ec_sect233r1);
+    AddIntConstant(ssl_grp_ec_sect239k1);
+    AddIntConstant(ssl_grp_ec_sect283k1);
+    AddIntConstant(ssl_grp_ec_sect283r1);
+    AddIntConstant(ssl_grp_ec_sect409k1);
+    AddIntConstant(ssl_grp_ec_sect409r1);
+    AddIntConstant(ssl_grp_ec_sect571k1);
+    AddIntConstant(ssl_grp_ec_sect571r1);
+    AddIntConstant(ssl_grp_ec_secp160k1);
+    AddIntConstant(ssl_grp_ec_secp160r1);
+    AddIntConstant(ssl_grp_ec_secp160r2);
+    AddIntConstant(ssl_grp_ec_secp192k1);
+    AddIntConstant(ssl_grp_ec_secp192r1);
+    AddIntConstant(ssl_grp_ec_secp224k1);
+    AddIntConstant(ssl_grp_ec_secp224r1);
+    AddIntConstant(ssl_grp_ec_secp256k1);
+    AddIntConstant(ssl_grp_ec_secp256r1);
+    AddIntConstant(ssl_grp_ec_secp384r1);
+    AddIntConstant(ssl_grp_ec_secp521r1);
+    AddIntConstant(ssl_grp_ec_curve25519);
+    AddIntConstant(ssl_grp_ffdhe_2048);
+    AddIntConstant(ssl_grp_ffdhe_3072);
+    AddIntConstant(ssl_grp_ffdhe_4096);
+    AddIntConstant(ssl_grp_ffdhe_6144);
+    AddIntConstant(ssl_grp_ffdhe_8192);
+
+    // SSL signature schemes
+    AddIntConstant(ssl_sig_none);
+    AddIntConstant(ssl_sig_rsa_pkcs1_sha1);
+    AddIntConstant(ssl_sig_rsa_pkcs1_sha256);
+    AddIntConstant(ssl_sig_rsa_pkcs1_sha384);
+    AddIntConstant(ssl_sig_rsa_pkcs1_sha512);
+    AddIntConstant(ssl_sig_ecdsa_secp256r1_sha256);
+    AddIntConstant(ssl_sig_ecdsa_secp384r1_sha384);
+    AddIntConstant(ssl_sig_ecdsa_secp521r1_sha512);
+    AddIntConstant(ssl_sig_rsa_pss_rsae_sha256);
+    AddIntConstant(ssl_sig_rsa_pss_rsae_sha384);
+    AddIntConstant(ssl_sig_rsa_pss_rsae_sha512);
+    AddIntConstant(ssl_sig_ed25519);
+    AddIntConstant(ssl_sig_ed448);
+    AddIntConstant(ssl_sig_rsa_pss_pss_sha256);
+    AddIntConstant(ssl_sig_rsa_pss_pss_sha384);
+    AddIntConstant(ssl_sig_rsa_pss_pss_sha512);
+    AddIntConstant(ssl_sig_dsa_sha1);
+    AddIntConstant(ssl_sig_dsa_sha256);
+    AddIntConstant(ssl_sig_dsa_sha384);
+    AddIntConstant(ssl_sig_dsa_sha512);
+    AddIntConstant(ssl_sig_ecdsa_sha1);
+
+    // ALPN Status
+    AddIntConstant(SSL_NEXT_PROTO_NO_SUPPORT);
+    AddIntConstant(SSL_NEXT_PROTO_NEGOTIATED);
+    AddIntConstant(SSL_NEXT_PROTO_NO_OVERLAP);
+    AddIntConstant(SSL_NEXT_PROTO_SELECTED);
+    AddIntConstant(SSL_NEXT_PROTO_EARLY_VALUE);
 
     /**************************************************************************
      * Cipher Suites
@@ -4652,6 +4999,7 @@ if (_AddIntConstantWithLookup(m, #constant, constant, \
     ExportConstant(TLS_RSA_WITH_SEED_CBC_SHA);
 
     ExportConstant(TLS_RSA_WITH_AES_128_GCM_SHA256);
+    ExportConstant(TLS_RSA_WITH_AES_256_GCM_SHA384);
     ExportConstant(TLS_DHE_RSA_WITH_AES_128_GCM_SHA256);
     ExportConstant(TLS_DHE_DSS_WITH_AES_128_GCM_SHA256);
 
@@ -4706,6 +5054,9 @@ if (_AddIntConstantWithLookup(m, #constant, constant, \
     ExportConstant(TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256);
     ExportConstant(TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256);
     ExportConstant(TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256);
+
+    ExportConstant(TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384);
+    ExportConstant(TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384);
 
     /* draft-ietf-tls-chacha20-poly1305-04 */
 #ifdef TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
