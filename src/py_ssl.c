@@ -287,7 +287,7 @@ SSLSocket_members[] = {
 /* ============================== Class Methods ============================= */
 
 PyDoc_STRVAR(SSLSocket_set_ssl_option_doc,
-"set_ssl_option(option, value)\n\
+"set_ssl_option(option: int, value: int | bool) -> None\n\
 \n\
 Sets a single configuration parameter on this socket. Call once for\n\
 each parameter you want to change. The configuration parameters are\n\
@@ -491,7 +491,7 @@ SSLSocket_set_ssl_option(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_get_ssl_option_doc,
-"get_ssl_option(value) -> value\n\
+"get_ssl_option(value: int) -> bool\n\
 \n\
 :Parameters:\n\
     value : integer\n\
@@ -522,7 +522,7 @@ SSLSocket_get_ssl_option(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_accept_doc,
-"accept(timeout=PR_INTERVAL_NO_TIMEOUT) -> (Socket, NetworkAddress)\n\
+"accept(timeout: int = PR_INTERVAL_NO_TIMEOUT) -> Tuple[SSLSocket, io.NetworkAddress]\n\
 \n\
 :Parameters:\n\
     timeout : integer\n\
@@ -647,12 +647,12 @@ ssl_auth_certificate(void *arg, PRFileDesc *pr_socket, PRBool check_sig, PRBool 
 }
 
 PyDoc_STRVAR(SSLSocket_set_auth_certificate_callback_doc,
-"set_auth_certificate_callback(callback, [user_data1, ...])\n\
+"set_auth_certificate_callback(callback: Callable[[SSLSocket, bool, bool, list], bool], args: list) -> None\n\
 \n\
 :Parameters:\n\
     callback : function pointer\n\
         callback to invoke\n\
-    user_dataN:\n\
+    args:\n\
         zero or more caller supplied parameters which will be passed to the callback\n\
 \n\
 The callback has the following signature::\n\
@@ -916,12 +916,12 @@ get_client_auth_data(void *arg, PRFileDesc *fd, CERTDistNames *caNames, CERTCert
 }
 
 PyDoc_STRVAR(SSLSocket_set_client_auth_data_callback_doc,
-"set_client_auth_data_callback(callback, [user_data1, ...])\n\
+"set_client_auth_data_callback(callback: Callable[[list, list], Tuple[nss.nss.Certificate, nss.nss.PrivateKey]], args: list)\n\
 \n\
 :Parameters:\n\
     callback : function pointer\n\
         callback to invoke\n\
-    user_dataN:\n\
+    args:\n\
         zero or more caller supplied parameters which will be passed to the callback\n\
 \n\
 The callback has the following signature::\n\
@@ -1062,12 +1062,12 @@ ssl_handshake_callback(PRFileDesc *fd, void *arg)
 }
 
 PyDoc_STRVAR(SSLSocket_set_handshake_callback_doc,
-"set_handshake_callback(callback, [user_data1, ...])\n\
+"set_handshake_callback(callback: Callable[[SSLSocket, list], None], list)\n\
 \n\
 :Parameters:\n\
     callback : function pointer\n\
         callback to invoke\n\
-    user_dataN:\n\
+    args:\n\
         zero or more caller supplied parameters which will be passed to the callback\n\
 \n\
 The callback has the following signature::\n\
@@ -1178,7 +1178,7 @@ SSLSocket_get_pkcs11_pin_arg(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_config_secure_server_doc,
-"config_secure_server(cert, key, kea)\n\
+"config_secure_server(cert: nss.Certificate, key: nss.PrivateKey, kea: int)\n\
 \n\
 :Parameters:\n\
     cert : Certificate object\n\
@@ -1217,7 +1217,7 @@ SSLSocket_config_secure_server(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_get_peer_certificate_doc,
-"get_peer_certificate() -> Certficate\n\
+"get_peer_certificate() -> nss.Certficate\n\
 \n\
 `SSLSocket.get_peer_certificate()` is used by certificate\n\
 authentication and bad-certificate callback functions to obtain the\n\
@@ -1249,7 +1249,7 @@ SSLSocket_get_peer_certificate(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_get_certificate_doc,
-"get_certificate() -> Certficate\n\
+"get_certificate() -> nss.Certificate\n\
 \n\
 Returns the certificate associated with the socket or\n\
 None if not previously set.\n\
@@ -1276,7 +1276,7 @@ SSLSocket_get_certificate(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_invalidate_session_doc,
-"invalidate_session()\n\
+"invalidate_session() -> None\n\
 \n\
 After you call SSLSSocket.invalidate_session(), the existing\n\
 connection using the session can continue, but no new connections can\n\
@@ -1297,7 +1297,7 @@ SSLSocket_invalidate_session(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_data_pending_doc,
-"data_pending()\n\
+"data_pending() -> int\n\
 \n\
 Returns the number of bytes waiting in internal SSL buffers to be read\n\
 by the local application from the SSL socket.\n\
@@ -1320,7 +1320,7 @@ SSLSocket_data_pending(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_get_security_status_doc,
-"get_security_status() -> on, cipher, key_size, secret_key_size, issuer, subject\n\
+"get_security_status() -> Tuple[int, str, int, int, str, str]\n\
 \n\
 Gets information about the security parameters of the current connection.\n\
 Returns the tuple (on, cipher, key_size, secret_key_size, issuer, subject)\n\
@@ -1396,7 +1396,7 @@ SSLSocket_get_security_status(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_get_session_id_doc,
-"get_session_id() -> id\n\
+"get_session_id() -> nss.SecItem\n\
 \n\
 Returns the SSL session ID as a SecItem.\n\
 "
@@ -1422,7 +1422,7 @@ SSLSocket_get_session_id(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_set_sock_peer_id_doc,
-"set_sock_peer_id(id)\n\
+"set_sock_peer_id(id: int) -> None\n\
 \n\
 :Parameters:\n\
     id : integer\n\
@@ -1492,7 +1492,7 @@ SSLSocket_set_sock_peer_id(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_set_cipher_pref_doc,
-"set_cipher_pref(cipher, enabled)\n\
+"set_cipher_pref(cipher: int, enabled: int | bool) -> None\n\
 \n\
 :Parameters:\n\
     cipher : integer\n\
@@ -1530,7 +1530,7 @@ SSLSocket_set_cipher_pref(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_get_cipher_pref_doc,
-"get_cipher_pref(cipher) -> enabled\n\
+"get_cipher_pref(cipher: int) -> bool\n\
 \n\
 :Parameters:\n\
     cipher : integer\n\
@@ -1562,7 +1562,7 @@ SSLSocket_get_cipher_pref(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_set_hostname_doc,
-"set_hostname(url)\n\
+"set_hostname(url: str) -> None\n\
 \n\
 :Parameters:\n\
     url : string\n\
@@ -1600,7 +1600,7 @@ SSLSocket_set_hostname(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_get_hostname_doc,
-"get_hostname()\n\
+"get_hostname() -> str\n\
 \n\
 `SSLSocket.get_hostname()` is used by certificate authentication callback\n\
 function to obtain the domain name of the desired SSL server for the\n\
@@ -1626,7 +1626,7 @@ SSLSocket_get_hostname(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_set_certificate_db_doc,
-"set_certificate_db(certdb)\n\
+"set_certificate_db(certdb: nss.CertDB) -> None\n\
 \n\
 :Parameters:\n\
     certdb : CertDB object\n\
@@ -1653,7 +1653,7 @@ SSLSocket_set_certificate_db(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_reset_handshake_doc,
-"reset_handshake(as_server)\n\
+"reset_handshake(as_server: bool) -> None\n\
 \n\
 :Parameters:\n\
     as_server : bool\n\
@@ -1698,7 +1698,7 @@ SSLSocket_reset_handshake(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_force_handshake_doc,
-"force_handshake()\n\
+"force_handshake() -> None\n\
 \n\
 Drives a handshake for a specified SSLSocket to completion on a\n\
 socket that has already been prepared to do a handshake or is in the\n\
@@ -1752,7 +1752,7 @@ SSLSocket_force_handshake(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_force_handshake_timeout_doc,
-"force_handshake_timeout(timeout)\n\
+"force_handshake_timeout(timeout: int) -> None\n\
 \n\
 :Parameters:\n\
     timeout : integer\n\
@@ -1781,7 +1781,7 @@ SSLSocket_force_handshake_timeout(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_rehandshake_doc,
-"rehandshake(flush_cache)\n\
+"rehandshake(flush_cache: bool) -> None\n\
 \n\
 :Parameters:\n\
     flush_cache : bool\n\
@@ -1835,7 +1835,7 @@ SSLSocket_rehandshake(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_rehandshake_timeout_doc,
-"rehandshake_timeout(flush_cache, timeout)\n\
+"rehandshake_timeout(flush_cache: bool, timeout: int)\n\
 \n\
 :Parameters:\n\
     flush_cache : bool\n\
@@ -1869,7 +1869,7 @@ SSLSocket_rehandshake_timeout(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_import_tcp_socket_doc,
-"import_tcp_socket(osfd) -> Socket\n\
+"import_tcp_socket(osfd: int) -> SSLSocket\n\
 :Parameters:\n\
     osfd : integer\n\
         file descriptor of the SOCK_STREAM socket to import\n\
@@ -1924,7 +1924,7 @@ SSLSocket_import_tcp_socket(Socket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_set_ssl_version_range_doc,
-"set_ssl_version_range(min_version, max_version)\n\
+"set_ssl_version_range(min_version: int | str, max_version: int | str) -> None\n\
 \n\
 :Parameters:\n\
     min_version : int or string\n\
@@ -1973,7 +1973,7 @@ SSLSocket_set_ssl_version_range(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_get_ssl_version_range_doc,
-"get_ssl_version_range(repr_kind=AsEnum) -> (min_version, max_version)\n\
+"get_ssl_version_range(repr_kind: int = nss.AsEnum) -> Tuple[int, int]\n\
 :Parameters:\n\
     repr_kind : RepresentationKind constant\n\
         Specifies what format the contents of the returned tuple will be in.\n\
@@ -2032,7 +2032,7 @@ SSLSocket_get_ssl_channel_info(SSLSocket *self, PyObject *args)
 
 
 PyDoc_STRVAR(SSLSocket_get_negotiated_host_doc,
-"get_negotiated_host() -> string\n\
+"get_negotiated_host() -> str\n\
 Returns SNI negotiated host name.\n\
 ");
 
@@ -2565,7 +2565,7 @@ SSLSocket_dealloc(SSLSocket* self)
 }
 
 PyDoc_STRVAR(SSLSocket_doc,
-"SSLSocket(family=PR_AF_INET, type=PR_DESC_SOCKET_TCP)\n\
+"SSLSocket(family: int = PR_AF_INET, type: int = PR_DESC_SOCKET_TCP)\n\
 \n\
 \n\
 :Parameters:\n\
@@ -3483,7 +3483,7 @@ SSLChannelInformation_new_from_SSLChannelInfo(SSLChannelInfo *info)
 
 
 PyDoc_STRVAR(SSL_set_ssl_default_option_doc,
-"set_ssl_default_option(option, value)\n\
+"set_ssl_default_option(option: int, value: int | bool) -> None\n\
 \n\
 Changes the default value of a specified SSL option for all\n\
 subsequently opened sockets as long as the current application program\n\
@@ -3510,7 +3510,7 @@ SSL_set_ssl_default_option(PyObject *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSL_get_ssl_default_option_doc,
-"get_ssl_default_option(value)\n\
+"get_ssl_default_option(value: int) -> int\n\
 \n\
 Gets the default value of a specified SSL option for all\n\
 subsequently opened sockets as long as the current application program\n\
@@ -3537,7 +3537,7 @@ SSL_get_ssl_default_option(PyObject *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSL_set_default_cipher_pref_doc,
-"set_cipher_pref(cipher, enabled)\n\
+"set_default_cipher_pref(cipher: int, enabled: bool) -> None\n\
 \n\
 :Parameters:\n\
     cipher : integer\n\
@@ -3576,7 +3576,7 @@ SSL_set_default_cipher_pref(PyObject *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSL_get_default_cipher_pref_doc,
-"get_default_cipher_pref(cipher) -> enabled\n\
+"get_default_cipher_pref(cipher: int) -> bool\n\
 \n\
 :Parameters:\n\
     cipher : integer\n\
@@ -3608,7 +3608,7 @@ SSL_get_default_cipher_pref(PyObject *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSL_set_cipher_policy_doc,
-"set_cipher_pref(cipher, enabled)\n\
+"set_cipher_policy(cipher: int, enabled: bool) -> None\n\
 \n\
 :Parameters:\n\
     cipher : integer\n\
@@ -3647,7 +3647,7 @@ SSL_set_cipher_policy(PyObject *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSL_get_cipher_policy_doc,
-"get_cipher_policy(cipher) -> policy\n\
+"get_cipher_policy(cipher: int) -> bool\n\
 \n\
 :Parameters:\n\
     cipher : integer\n\
@@ -3936,7 +3936,7 @@ SSL_get_max_server_cache_locks(PyObject *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSL_set_max_server_cache_locks_doc,
-"set_max_server_cache_locks(max_locks)\n\
+"set_max_server_cache_locks(max_locks: int) -> None\n\
 \n\
 :Parameters:\n\
     max_locks : int\n\
@@ -3971,7 +3971,7 @@ SSL_set_max_server_cache_locks(PyObject *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSL_clear_session_cache_doc,
-"clear_session_cache()\n\
+"clear_session_cache() -> None\n\
 \n\
 You must call ssl.clear_session_cache() after you use one of the SSL\n\
 Export Policy Functions to change cipher suite policy settings or use\n\
@@ -3992,7 +3992,7 @@ SSL_clear_session_cache(PyObject *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSL_shutdown_server_session_id_cache_doc,
-"shutdown_server_session_id_cache()\n\
+"shutdown_server_session_id_cache() -> None\n\
 \n\
 ");
 
@@ -4006,7 +4006,7 @@ SSL_shutdown_server_session_id_cache(PyObject *self, PyObject *args)
 }
 
 PyDoc_STRVAR(NSS_set_domestic_policy_doc,
-"set_domestic_policy()\n\
+"set_domestic_policy() -> None\n\
 \n\
 Configures cipher suites to conform with current U.S. export\n\
 regulations related to domestic software products with encryption\n\
@@ -4026,7 +4026,7 @@ NSS_set_domestic_policy(PyObject *self, PyObject *args)
 }
 
 PyDoc_STRVAR(NSS_set_export_policy_doc,
-"set_export_policy()\n\
+"set_export_policy() -> None\n\
 \n\
 Configures the SSL cipher suites to conform with current U.S. export\n\
 regulations related to international software products with encryption\n\
@@ -4046,7 +4046,7 @@ NSS_set_export_policy(PyObject *self, PyObject *args)
 }
 
 PyDoc_STRVAR(NSS_set_france_policy_doc,
-"set_france_policy()\n\
+"set_france_policy() -> None\n\
 Configures the SSL cipher suites to conform with French import\n\
 regulations related to software products with encryption features.\n\
 \n\
@@ -4163,7 +4163,7 @@ ssl_library_version_from_pyobject(PyObject *py_value, const char *bound, unsigne
 }
 
 PyDoc_STRVAR(SSL_get_ssl_version_from_major_minor_doc,
-"get_ssl_version_from_major_minor(major, minor, repr_kind=AsString) -> Object\n\
+"get_ssl_version_from_major_minor(major: int, minor: int, repr_kind: int = nss.AsString) -> Any\n\
 \n\
 :Parameters:\n\
     major : int\n\
@@ -4205,7 +4205,7 @@ SSL_get_ssl_version_from_major_minor(PyObject *self, PyObject *args, PyObject *k
 }
 
 PyDoc_STRVAR(SSL_ssl_library_version_name_doc,
-"ssl_library_version_name(ssl_library_version, repr_kind=AsEnumName) -> string\n\
+"ssl_library_version_name(ssl_library_version: int, repr_kind: int = nss.AsEnumName) -> str\n\
 \n\
 :Parameters:\n\
     ssl_library_version : int\n\
@@ -4241,7 +4241,7 @@ SSL_ssl_library_version_name(PyObject *self, PyObject *args, PyObject *kwds)
 }
 
 PyDoc_STRVAR(SSL_ssl_library_version_from_name_doc,
-"ssl_library_version_from_name(name) -> int\n\
+"ssl_library_version_from_name(name: str) -> int\n\
 \n\
 :Parameters:\n\
     name : string\n\
@@ -4289,7 +4289,7 @@ SSL_ssl_library_version_from_name(PyObject *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSL_get_supported_ssl_version_range_doc,
-"get_supported_ssl_version_range(protocol_variant=SSL_VARIANT_STREAM, repr_kind=AsEnum) -> (min_version, max_version)\n\
+"get_supported_ssl_version_range(protocol_variant=SSL_VARIANT_STREAM, repr_kind: int = nss.AsEnum) -> Tuple[int, int]\n\
 \n\
 :Parameters:\n\
     protocol_variant : int\n\
@@ -4335,7 +4335,7 @@ SSL_get_supported_ssl_version_range(PyObject *self, PyObject *args, PyObject *kw
 }
 
 PyDoc_STRVAR(SSL_get_default_ssl_version_range_doc,
-"get_default_ssl_version_range(protocol_variant=SSL_VARIANT_STREAM, repr_kind=AsEnum) -> (min_version, max_version)\n\
+"get_default_ssl_version_range(protocol_variant=SSL_VARIANT_STREAM, repr_kind: int = nss.AsEnum) -> Tuple[int, int]\n\
 \n\
 :Parameters:\n\
     protocol_variant : int\n\
@@ -4381,7 +4381,7 @@ SSL_get_default_ssl_version_range(PyObject *self, PyObject *args, PyObject *kwds
 }
 
 PyDoc_STRVAR(SSL_set_default_ssl_version_range_doc,
-"set_default_ssl_version_range(min_version, max_version, protocol_variant=SSL_VARIANT_STREAM)\n\
+"set_default_ssl_version_range(min_version: int | str, max_version: int | str, protocol_variant=SSL_VARIANT_STREAM) -> None\n\
 \n\
 :Parameters:\n\
     min_version : int or string\n\
@@ -4437,7 +4437,7 @@ SSL_set_default_ssl_version_range(PyObject *self, PyObject *args, PyObject *kwds
 }
 
 PyDoc_STRVAR(SSL_get_cipher_suite_info_doc,
-"get_cipher_suite_info(suite) -> SSLCipherSuiteInfo\n\
+"get_cipher_suite_info(suite: int) -> SSLCipherSuiteInfo\n\
 \n\
 :Parameters:\n\
     suite : int\n\
@@ -4467,7 +4467,7 @@ SSL_get_cipher_suite_info(PyObject *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSL_ssl_cipher_suite_name_doc,
-"ssl_cipher_suite_name(cipher) -> string\n\
+"ssl_cipher_suite_name(cipher: int) -> str\n\
 \n\
 :Parameters:\n\
     cipher : int\n\
@@ -4491,7 +4491,7 @@ SSL_ssl_cipher_suite_name(PyObject *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSL_ssl_cipher_suite_from_name_doc,
-"ssl_cipher_suite_from_name(name) -> int\n\
+"ssl_cipher_suite_from_name(name: str) -> int\n\
 \n\
 :Parameters:\n\
     name : string\n\
