@@ -287,7 +287,7 @@ SSLSocket_members[] = {
 /* ============================== Class Methods ============================= */
 
 PyDoc_STRVAR(SSLSocket_set_ssl_option_doc,
-"set_ssl_option(option: int, value: int | bool) -> None\n\
+"set_ssl_option(option: int, value: Union[int, bool]) -> None\n\
 \n\
 Sets a single configuration parameter on this socket. Call once for\n\
 each parameter you want to change. The configuration parameters are\n\
@@ -1492,7 +1492,7 @@ SSLSocket_set_sock_peer_id(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_set_cipher_pref_doc,
-"set_cipher_pref(cipher: int, enabled: int | bool) -> None\n\
+"set_cipher_pref(cipher: int, enabled: Union[int, bool]) -> None\n\
 \n\
 :Parameters:\n\
     cipher : integer\n\
@@ -1924,7 +1924,7 @@ SSLSocket_import_tcp_socket(Socket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_set_ssl_version_range_doc,
-"set_ssl_version_range(min_version: int | str, max_version: int | str) -> None\n\
+"set_ssl_version_range(min_version: Union[int, str], max_version: Union[int, str]) -> None\n\
 \n\
 :Parameters:\n\
     min_version : int or string\n\
@@ -2261,7 +2261,7 @@ SSLSocket_set_signature_scheme_prefs(SSLSocket *self, PyObject *args)
 }
 
 PyDoc_STRVAR(SSLSocket_get_signature_scheme_prefs_doc,
-"get_signature_scheme_prefs() -> list[sigs]\n\
+"get_signature_scheme_prefs() -> list[int]\n\
 returns the list of signature schemes currently enabled\n\
 ");
 
@@ -3483,7 +3483,7 @@ SSLChannelInformation_new_from_SSLChannelInfo(SSLChannelInfo *info)
 
 
 PyDoc_STRVAR(SSL_set_ssl_default_option_doc,
-"set_ssl_default_option(option: int, value: int | bool) -> None\n\
+"set_ssl_default_option(option: int, value: Union[int, bool]) -> None\n\
 \n\
 Changes the default value of a specified SSL option for all\n\
 subsequently opened sockets as long as the current application program\n\
@@ -4381,7 +4381,7 @@ SSL_get_default_ssl_version_range(PyObject *self, PyObject *args, PyObject *kwds
 }
 
 PyDoc_STRVAR(SSL_set_default_ssl_version_range_doc,
-"set_default_ssl_version_range(min_version: int | str, max_version: int | str, protocol_variant=SSL_VARIANT_STREAM) -> None\n\
+"set_default_ssl_version_range(min_version: Union[int, str], max_version: Union[int, str], protocol_variant=SSL_VARIANT_STREAM) -> None\n\
 \n\
 :Parameters:\n\
     min_version : int or string\n\
